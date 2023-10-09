@@ -1,6 +1,6 @@
 {
   "name": "epson-projector-ctrl",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A nodejs module to control Epson projector via RS232, http, and TCP protocol",
   "main": "index.js",
   "scripts": {
