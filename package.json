@@ -1,6 +1,6 @@
 {
-  "name": "epson-control",
-  "version": "1.0.0",
+  "name": "epson-projector-ctrl",
+  "version": "0.0.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -10,6 +10,10 @@
     "type": "git",
     "url": "https://github.com/yuxiaolejs/epson-projector"
   },
+  "keywords": [
+    "epson",
+    "projector"
+  ],
   "author": "Tianle Yu",
   "license": "MIT",
   "dependencies": {

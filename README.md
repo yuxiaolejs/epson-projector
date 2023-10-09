@@ -1,11 +1,11 @@
 # Epson projector control
 ## Installation
 ```{bash}
-npm i epson-projector
+npm i epson-projector-ctrl
 ```
 ## Quick start
 ```{js}
-const epsonSerial = require('epson-projector').serial
+const epsonSerial = require('epson-projector-ctrl').serial
 const projector = new epsonSerial("COM3")
 // Get the power state
 projector.power().then((power) => {
