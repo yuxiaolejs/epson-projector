@@ -1,5 +1,7 @@
-const epsonSerial = require('./index').serial
-const projector = new epsonSerial("COM3")
-projector.power().then((power) => {
+const epsonSerial = require('./index').http
+const projector = new epsonSerial("10.0.1.102")
+projector.luminance().then((power) => {
     console.log(power)
+}).catch((err) => {
+    console.log(err)
 })

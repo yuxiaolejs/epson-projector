@@ -1,6 +1,15 @@
-const SerialPort = require('serialport').SerialPort;
+const axios = require('axios');
+const jsdom = require("jsdom");
+
 const EventEmitter = require('events').EventEmitter;
 const util = require('util');
+
+const cmdPageMap = {
+    LUMINANCE: "webconf.dll?page=3",
+    HREVERSE: "webconf.dll?page=4",
+    VREVERSE: "webconf.dll?page=4",
+
+}
 
 class EpsonProjector {
     /**
@@ -14,111 +23,43 @@ class EpsonProjector {
      * })
      */
 
-    constructor(portName) {
+    constructor(host) {
         EventEmitter.call(this);
-        this.port = new SerialPort({
-            path: portName,
-            baudRate: 9600,
-            stopBits: 1,
-            dataBits: 8
+        this.service = axios.create({
+            baseURL: `http://${host}`,
+            headers: {
+                referer: `http://${host}/`,
+            }
         })
         this.ready = false
-        this.port.on("open", (d) => {
-            this.ready = true
-        })
-        this.port.on("data", (d) => {
-            this.emit("data")
-        })
     }
 
     /**
-     * Open the connection to the projector
-     * @return {Promise} Promise that resolves when the connection is open
-     * @example
-     * proj.open().then(() => {
-     * console.log("Connection open")
-     * })
-     */
-
-    open() {
-        let that = this
-        return new Promise((res, rej) => {
-            that.port.open((err) => {
-                if (err)
-                    rej(err)
-                else
-                    res()
-            })
-        })
-    }
-
-    /**
-     * Close the connection to the projector
-     * @return {Promise} Promise that resolves when the connection is closed
-     * @example
-     * proj.close().then(() => {
-     * console.log("Connection closed")
-     * })
-     */
-
-    close() {
-        let that = this
-        return new Promise((res, rej) => {
-            that.port.close((err) => {
-                if (err)
-                    rej(err)
-                else
-                    res()
-            })
-        })
-    }
-
-    /**
-     * Get or set the the power status
-     * @param  {[String]} power  "ON" or "OFF" to set the power status, or undefined to get the power status
+     * Set the the power status
+     * @param  {[String]} power  "ON" or "OFF" to set the power status
      * @return {Promise}         Promise that resolves to the power status
      * @example
      * proj.power("ON").then((power) => {
      * console.log(power) // "undefined"
      * })
-     * proj.power().then((power) => {
-     * console.log(power) // "ON"
-     * })
      */
     power(power) {
         return this.#sendGeneralCommand("PWR", power)
     }
-    /**
-     * Get error type
-     * @return {Promise}         Promise that resolves error type
-     */
-    error() {
-        return this.#sendGeneralCommand("ERR")
-    }
 
     /**
-     * Get or set the the source
-     * @param  {[String]} source  "00"~"FF", or undefined to get the source
+     * Set the the source
+     * @param  {[String]} source  "00"~"FF"
      * @return {Promise}         Promise that resolves to the source
      * @example
      * proj.source("00").then((source) => {
      *  console.log(source) // "undefined"
      * })
-     * proj.source().then((source) => {
-     * console.log(source) // "FF"
-     * })
      */
     source(source) {
-        return this.#sendGeneralCommand("SOURCE", source)
+        return this.#sendGeneralCommand("SOURCE",sourceerror)
     }
 
-    /**
-     * Get the lamp hours
-     * @return {Promise}         Promise that resolves to the lamp hours
-     */
-    lamp() {
-        return this.#sendGeneralCommand("LAMP")
-    }
     /**
      * Get or set the luminance
      * @param {[String]} luminance "00", "01", or undefined to get the luminance
@@ -135,15 +76,12 @@ class EpsonProjector {
         return this.#sendGeneralCommand("LUMINANCE", luminance)
     }
     /**
-     * Get or set the mute status
-     * @param {[String]} mute  "ON" or "OFF" to set the mute status, or undefined to get the mute status
+     * Set the mute status
+     * @param {[String]} mute  "ON" or "OFF" to set the mute status
      * @returns {Promise} Promise that resolves to the mute status
      * @example
      * proj.mute("ON").then((mute) => {
      * console.log(mute) // "undefined"
-     * })
-     * proj.mute().then((mute) => {
-     * console.log(mute) // "ON"
      * })
      */
     mute(mute) {
@@ -151,15 +89,12 @@ class EpsonProjector {
     }
 
     /**
-     * Get or set the freeze status
-     * @param {[String]} freeze  "ON" or "OFF" to set the freeze status, or undefined to get the freeze status
+     * Set the freeze status
+     * @param {[String]} freeze  "ON" or "OFF" to set the freeze status
      * @returns {Promise} Promise that resolves to the freeze status
      * @example
      * proj.freeze("ON").then((freeze) => {
      * console.log(freeze) // "undefined"
-     * })
-     * proj.freeze().then((freeze) => {
-     * console.log(freeze) // "ON"
      * })
      */
     freeze(freeze) {
@@ -202,24 +137,35 @@ class EpsonProjector {
     #sendGeneralCommand(command, arg) {
         return new Promise((res, rej) => {
             if (arg) {
-                this.port.write(`${command} ${arg}\r`)
-                this.port.once("data", (d) => {
-                    if (d.indexOf(":") != 0) {
-                        rej("Error: " + d)
-                        return
+                this.service.get(`/cgi-bin/webconf.dll?${command}=${arg}`).then((response) => {
+                    if (response.status == 200) {
+                        res()
                     }
-                    res()
+                    else {
+                        rej(response.data)
+                    }
+                }).catch((err) => {
+                    rej(err)
                 })
             } else {
-                this.port.once("data", (d) => {
-                    d = d.toString()
-                    if (d.indexOf("=") < 0) {
-                        rej("Error: " + d)
-                        return
+                this.service.get(`/cgi-bin/${cmdPageMap[command]}`).then((response) => {
+                    if (response.status == 200) {
+                        let dom = new jsdom.JSDOM(response.data)
+                        let radios = dom.window.document.getElementsByName(command)
+                        for (let i = 0; i < radios.length; i++) {
+                            if (radios[i].checked) {
+                                res(radios[i].value)
+                                break
+                            }
+                        }
+                        res()
                     }
-                    res(d.split("=")[1])
+                    else {
+                        rej(response.data)
+                    }
+                }).catch((err) => {
+                    rej(err)
                 })
-                this.port.write(`${command}?\r`)
             }
         })
     }
